@@ -1,14 +1,13 @@
 package server;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -21,44 +20,100 @@ public class JsonDatabase {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final Lock readLock = lock.readLock();
     private final Lock writeLock = lock.writeLock();
-    private final Gson gson = new Gson();
 
-    public void set(String key, String value) throws IOException {
+    public void set(JSONObject request) throws IOException {
         writeLock.lock();
 
-        Map<String, String> database = readDbContent();
-        database.put(key, value);
-        Files.writeString(PATH, gson.toJson(database));
+        JSONObject database = readDbContent();
+        JSONArray keys =  request.getJSONArray("key");
+        String[] keysArray = keys.toList().stream()
+                .map(Object::toString)
+                .toArray(String[]::new);
+        database = setValue(request.get("value"), database, keysArray);
+        Files.writeString(PATH, database.toString());
 
         writeLock.unlock();
     }
 
-    public String get(String key) throws IOException {
+    public String get(JSONObject request) throws IOException {
         readLock.lock();
 
-        Map<String, String> database = readDbContent();
-        String value = database.get(key);
+        JSONObject database = readDbContent();
+        JSONArray keys =  request.getJSONArray("key");
+        String[] keysArray = keys.toList().stream()
+                .map(Object::toString)
+                .toArray(String[]::new);
+        String value = getValue(database, keysArray);
 
         readLock.unlock();
         return value;
     }
 
-    public boolean delete(String key) throws IOException {
+    public boolean delete(JSONObject request) throws IOException {
         writeLock.lock();
 
-        Map<String, String> database = readDbContent();
-        String deletedValue = database.remove(key);
-        Files.writeString(PATH, gson.toJson(database));
+        JSONObject database = readDbContent();
+        JSONArray keys =  request.getJSONArray("key");
+        String[] keysArray = keys.toList().stream()
+                .map(Object::toString)
+                .toArray(String[]::new);
+        JSONObject dbAfterDelOperation = removeValue(database, keysArray);
+        database = dbAfterDelOperation == null ? database : dbAfterDelOperation;
+        Files.writeString(PATH, database.toString());
 
         writeLock.unlock();
-        return deletedValue != null;
+        return dbAfterDelOperation != null;
     }
 
-    private Map<String, String> readDbContent() throws IOException {
+    private JSONObject readDbContent() throws IOException {
         String dbString = new String(Files.readAllBytes(PATH));
-        Type typeOfMap = new TypeToken<Map<String, Object>>() {
-        }.getType();
-        return gson.fromJson(dbString, typeOfMap);
+
+        return new JSONObject(dbString);
+    }
+
+    private JSONObject setValue(Object value, JSONObject jsonObject, String[] keys)  {
+        String currentKey = keys[0];
+
+        if (keys.length == 1) {
+            return jsonObject.put(currentKey, value);
+        } else if (!jsonObject.has(currentKey)) {
+            jsonObject.put(currentKey, new JSONObject());
+        }
+
+        JSONObject nestedJsonObjectVal = jsonObject.getJSONObject(currentKey);
+        String[] remainingKeys = Arrays.copyOfRange(keys, 1, keys.length);
+        JSONObject updatedNestedValue = setValue(value, nestedJsonObjectVal, remainingKeys);
+        return jsonObject.put(currentKey, updatedNestedValue);
+    }
+
+    private String getValue(JSONObject jsonObject, String[] keys) {
+        String currentKey = keys[0];
+
+        if (keys.length == 1 && jsonObject.has(currentKey)) {
+            return jsonObject.getString(currentKey);
+        } else if (!jsonObject.has(currentKey)) {
+            return null;
+        }
+
+        JSONObject nestedJsonObjectVal = jsonObject.getJSONObject(currentKey);
+        String[] remainingKeys = Arrays.copyOfRange(keys, 1, keys.length);
+        return getValue(nestedJsonObjectVal, remainingKeys);
+    }
+
+    private JSONObject removeValue(JSONObject jsonObject, String[] keys) {
+        String currentKey = keys[0];
+
+        if (keys.length == 1 && jsonObject.has(currentKey)) {
+            jsonObject.remove(currentKey);
+            return jsonObject;
+        } else if (!jsonObject.has(currentKey)) {
+            return null;
+        }
+
+        JSONObject nestedJsonObjectVal = jsonObject.getJSONObject(currentKey);
+        String[] remainingKeys = Arrays.copyOfRange(keys, 1, keys.length);
+        JSONObject updatedNestedValue = removeValue(nestedJsonObjectVal, remainingKeys);
+        return jsonObject.put(currentKey, updatedNestedValue);
     }
 }
 

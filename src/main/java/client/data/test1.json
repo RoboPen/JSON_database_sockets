@@ -1,6 +1,6 @@
 {
   "type": "set",
-  "key": "person",
+  "key": ["person"],
   "value": {
     "name": "Elon Musk",
     "car": {

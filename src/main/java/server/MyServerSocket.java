@@ -1,5 +1,7 @@
 package server;
 
+import org.json.JSONObject;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -22,38 +24,44 @@ public class MyServerSocket {
     }
 
     public void run() throws IOException {
-        try (ServerSocket server = new ServerSocket(port, 50, InetAddress.getByName(address))) {
-            System.out.println("Server started!");
-            ExecutorService executor = Executors.newFixedThreadPool(4);
-            AtomicBoolean running = new AtomicBoolean(true);
 
-            while (!Thread.interrupted() && running.get()) {
-                Socket socket = server.accept(); // accepting a new client
+        ServerSocket server = new ServerSocket(port, 50, InetAddress.getByName(address));
+        System.out.println("Server started!");
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        AtomicBoolean running = new AtomicBoolean(true);
 
-                executor.submit(() -> {
-                    try (
-                            socket;
-                            DataInputStream input = new DataInputStream(socket.getInputStream());
-                            DataOutputStream output = new DataOutputStream(socket.getOutputStream())
-                    ) {
-                        String command = input.readUTF(); // reading a message
-                        System.out.println("Received: " + command);
+        while (running.get()) {
+            //client.Main.main(new String[2]);
+            Socket socket = server.accept(); // accepting a new client
 
-                        Request request = responseHandler.getRequest(command);
-                        String jsonResponse = responseHandler.getJsonResponse(request);
-                        output.writeUTF(jsonResponse); // resend it to the client
-                        System.out.println("Sent: " + jsonResponse);
+            executor.submit(() -> {
+                try (
+                        socket;
+                        DataInputStream input = new DataInputStream(socket.getInputStream());
+                        DataOutputStream output = new DataOutputStream(socket.getOutputStream())
+                ) {
+                    String command = input.readUTF(); // reading a message
+                    System.out.println("Received: " + command);
 
-                        if ("exit".equals(request.getType())) {
-                            running.set(false);
-                            server.close();
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    JSONObject request = new JSONObject(command);
+                    String jsonResponse = responseHandler.getJsonResponse(request);
+
+                    output.writeUTF(jsonResponse); // resend it to the client
+                    System.out.println("Sent: " + jsonResponse);
+
+                    if ("exit".equals(request.getString("type"))) {
+                        running.set(false);
+                        System.exit(0);
                     }
-                });
-            }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
         }
+
     }
+
 }
+
 

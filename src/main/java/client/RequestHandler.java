@@ -1,6 +1,7 @@
 package client;
 
 import com.google.gson.Gson;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,35 +20,35 @@ public class RequestHandler {
     public String createRequest(Arguments arguments) throws IOException {
         String inputFile = arguments.getInputFile();
 
-        Arguments request;
+        JSONObject request;
         if (inputFile == null) {
             request = createRequestFromArgs(arguments);
         } else {
             request = createRequestFromFile(inputFile);
         }
 
-        return gson.toJson(request);
+        return request.toString();
     }
 
-    private Arguments createRequestFromArgs(Arguments arguments) {
+    private JSONObject createRequestFromArgs(Arguments arguments) {
         String type = arguments.getType();
         String key = arguments.getKey();
         String value = arguments.getValue();
 
-        Arguments request = new Arguments();
-        request.setType(type);
+        JSONObject request = new JSONObject();
+        request.put("type", type);
         if (key != null) {
-            request.setKey(key);
+            request.put("key", key);
         }
         if (value != null) {
-            request.setValue(value);
+            request.put("value", value);
         }
         return request;
     }
 
-    private Arguments createRequestFromFile(String inputFile) throws IOException {
+    private JSONObject createRequestFromFile(String inputFile) throws IOException {
         String fileContent = new String(Files.readAllBytes(Path.of(INPUT_FILE_DIR + inputFile)));
-        System.out.println(fileContent);
-        return gson.fromJson(fileContent, Arguments.class);
+
+        return new JSONObject(fileContent);
     }
 }

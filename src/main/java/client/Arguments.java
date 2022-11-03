@@ -2,6 +2,9 @@ package client;
 
 import com.beust.jcommander.Parameter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Arguments {
     @Parameter(names = "-t", description = "Type of the request")
     private String type;
