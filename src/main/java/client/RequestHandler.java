@@ -1,6 +1,7 @@
 package client;
 
 import com.google.gson.Gson;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;

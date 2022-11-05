@@ -31,7 +31,6 @@ public class MyServerSocket {
         AtomicBoolean running = new AtomicBoolean(true);
 
         while (running.get()) {
-            //client.Main.main(new String[2]);
             Socket socket = server.accept(); // accepting a new client
 
             executor.submit(() -> {

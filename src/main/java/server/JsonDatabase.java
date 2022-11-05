@@ -25,10 +25,7 @@ public class JsonDatabase {
         writeLock.lock();
 
         JSONObject database = readDbContent();
-        JSONArray keys =  request.getJSONArray("key");
-        String[] keysArray = keys.toList().stream()
-                .map(Object::toString)
-                .toArray(String[]::new);
+        String[] keysArray = createStringArray(request);
         database = setValue(request.get("value"), database, keysArray);
         Files.writeString(PATH, database.toString());
 
@@ -39,10 +36,7 @@ public class JsonDatabase {
         readLock.lock();
 
         JSONObject database = readDbContent();
-        JSONArray keys =  request.getJSONArray("key");
-        String[] keysArray = keys.toList().stream()
-                .map(Object::toString)
-                .toArray(String[]::new);
+        String[] keysArray = createStringArray(request);
         String value = getValue(database, keysArray);
 
         readLock.unlock();
@@ -53,10 +47,7 @@ public class JsonDatabase {
         writeLock.lock();
 
         JSONObject database = readDbContent();
-        JSONArray keys =  request.getJSONArray("key");
-        String[] keysArray = keys.toList().stream()
-                .map(Object::toString)
-                .toArray(String[]::new);
+        String[] keysArray = createStringArray(request);
         JSONObject dbAfterDelOperation = removeValue(database, keysArray);
         database = dbAfterDelOperation == null ? database : dbAfterDelOperation;
         Files.writeString(PATH, database.toString());
@@ -69,6 +60,19 @@ public class JsonDatabase {
         String dbString = new String(Files.readAllBytes(PATH));
 
         return new JSONObject(dbString);
+    }
+
+    private String[] createStringArray(JSONObject request){
+        JSONArray keys;
+        if(request.get("key").getClass().getName().equals("org.json.JSONArray")){
+            keys =  request.getJSONArray("key");
+        } else {
+            keys = new JSONArray("[" + request.get("key") + "]");
+        }
+
+        return keys.toList().stream()
+                .map(Object::toString)
+                .toArray(String[]::new);
     }
 
     private JSONObject setValue(Object value, JSONObject jsonObject, String[] keys)  {

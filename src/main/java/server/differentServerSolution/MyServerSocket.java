@@ -27,8 +27,7 @@ public class MyServerSocket {
         try (ServerSocket server = new ServerSocket(port, 50, InetAddress.getByName(address))) {
             System.out.println("Server started!");
             while (true) {
-                Socket socket = server.accept();
-                Session session = new Session(server, socket, responseHandler);
+                Session session = new Session(server.accept(), responseHandler);
                 executor.submit(session);
             }
         } catch (IOException e) {
