@@ -1,8 +1,9 @@
 package server;
 
 import com.google.gson.Gson;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,110 +15,124 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class JsonDatabase {
     private static final String DB_PATH = "src/main/java/server/data/db.json";
-    //    private static final String DB_PATH = System.getProperty("user.dir") + "/JSON Database/task/src/server/data/db.json";
     private static final Path PATH = Path.of(DB_PATH);
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final Lock readLock = lock.readLock();
     private final Lock writeLock = lock.writeLock();
+    private final Gson gson = new Gson();
 
-    public void set(JSONObject request) throws IOException {
+
+    public void set(Object key, JsonElement value) {
         writeLock.lock();
 
-        JSONObject database = readDbContent();
-        String[] keysArray = createStringArray(request);
-        database = setValue(request.get("value"), database, keysArray);
-        Files.writeString(PATH, database.toString());
-
-        writeLock.unlock();
+        try {
+            JsonObject database = readDbContent();
+            String[] keysArray = createStringArray(key);
+            setValue(value, database, keysArray);
+            Files.writeString(PATH, gson.toJson(database));
+        } catch (IOException e) {
+            System.err.println("Error while setting new value");
+        } finally {
+            writeLock.unlock();
+        }
     }
 
-    public String get(JSONObject request) throws IOException {
+    public Object get(Object key) {
         readLock.lock();
 
-        JSONObject database = readDbContent();
-        String[] keysArray = createStringArray(request);
-        String value = getValue(database, keysArray);
+        Object value = null;
+        try {
+            JsonObject database = readDbContent();
+            String[] keysArray = createStringArray(key);
+            value = getValue(database, keysArray);
+            return value;
+        } catch (IOException e) {
+            System.err.println("Error while getting value");
+        } finally {
+            readLock.unlock();
+        }
 
-        readLock.unlock();
         return value;
     }
 
-    public boolean delete(JSONObject request) throws IOException {
+    public boolean delete(Object key) {
         writeLock.lock();
 
-        JSONObject database = readDbContent();
-        String[] keysArray = createStringArray(request);
-        JSONObject dbAfterDelOperation = removeValue(database, keysArray);
-        database = dbAfterDelOperation == null ? database : dbAfterDelOperation;
-        Files.writeString(PATH, database.toString());
+        JsonElement deletedValue = null;
+        try {
+            JsonObject database = readDbContent();
+            String[] keysArray = createStringArray(key);
+            deletedValue = deleteValue(database, keysArray);
+            Files.writeString(PATH, gson.toJson(database));
+        } catch (IOException e) {
+            System.err.println("Error while deleting value");
+        } finally {
+            writeLock.unlock();
+        }
 
-        writeLock.unlock();
-        return dbAfterDelOperation != null;
+        return deletedValue != null;
     }
 
-    private JSONObject readDbContent() throws IOException {
+    private JsonObject readDbContent() throws IOException {
         String dbString = new String(Files.readAllBytes(PATH));
 
-        return new JSONObject(dbString);
+        return gson.fromJson(dbString, JsonObject.class);
     }
 
-    private String[] createStringArray(JSONObject request){
-        JSONArray keys;
-        if(request.get("key").getClass().getName().equals("org.json.JSONArray")){
-            keys =  request.getJSONArray("key");
+    private String[] createStringArray(Object key) {
+        String[] keys;
+
+        if (key instanceof String) {
+            keys = new String[]{key.toString()};
         } else {
-            keys = new JSONArray("[" + request.get("key") + "]");
+            keys = new Gson().fromJson(key.toString(), String[].class);
         }
 
-        return keys.toList().stream()
-                .map(Object::toString)
-                .toArray(String[]::new);
+        return keys;
     }
 
-    private JSONObject setValue(Object value, JSONObject jsonObject, String[] keys)  {
-        String currentKey = keys[0];
-
-        if (keys.length == 1) {
-            return jsonObject.put(currentKey, value);
-        } else if (!jsonObject.has(currentKey)) {
-            jsonObject.put(currentKey, new JSONObject());
-        }
-
-        JSONObject nestedJsonObjectVal = jsonObject.getJSONObject(currentKey);
-        String[] remainingKeys = Arrays.copyOfRange(keys, 1, keys.length);
-        JSONObject updatedNestedValue = setValue(value, nestedJsonObjectVal, remainingKeys);
-        return jsonObject.put(currentKey, updatedNestedValue);
-    }
-
-    private String getValue(JSONObject jsonObject, String[] keys) {
+    private void setValue(JsonElement value, JsonObject jsonObject, String[] keys) {
         String currentKey = keys[0];
 
         if (keys.length == 1 && jsonObject.has(currentKey)) {
-            return jsonObject.getString(currentKey);
+            jsonObject.add(currentKey, value);
+            return;
+        } else if (!jsonObject.has(currentKey)) {
+            jsonObject.add(currentKey, new JsonObject());
+        }
+
+        JsonObject nestedObjectVal = jsonObject.getAsJsonObject(currentKey);
+        String[] remainingKeys = Arrays.copyOfRange(keys, 1, keys.length);
+        setValue(value, nestedObjectVal, remainingKeys);
+    }
+
+    private Object getValue(JsonObject jsonObject, String[] keys) {
+        String currentKey = keys[0];
+
+        if (keys.length == 1 && jsonObject.has(currentKey)) {
+            return jsonObject.get(currentKey);
         } else if (!jsonObject.has(currentKey)) {
             return null;
         }
 
-        JSONObject nestedJsonObjectVal = jsonObject.getJSONObject(currentKey);
+        JsonObject nestedJsonObjectVal = jsonObject.getAsJsonObject(currentKey);
         String[] remainingKeys = Arrays.copyOfRange(keys, 1, keys.length);
         return getValue(nestedJsonObjectVal, remainingKeys);
     }
 
-    private JSONObject removeValue(JSONObject jsonObject, String[] keys) {
+    private JsonElement deleteValue(JsonObject jsonObject, String[] keys) {
         String currentKey = keys[0];
 
         if (keys.length == 1 && jsonObject.has(currentKey)) {
-            jsonObject.remove(currentKey);
-            return jsonObject;
+            return jsonObject.remove(currentKey);
         } else if (!jsonObject.has(currentKey)) {
             return null;
         }
 
-        JSONObject nestedJsonObjectVal = jsonObject.getJSONObject(currentKey);
+        JsonObject nestedJsonObjectVal = jsonObject.getAsJsonObject(currentKey);
         String[] remainingKeys = Arrays.copyOfRange(keys, 1, keys.length);
-        JSONObject updatedNestedValue = removeValue(nestedJsonObjectVal, remainingKeys);
-        return jsonObject.put(currentKey, updatedNestedValue);
+        return deleteValue(nestedJsonObjectVal, remainingKeys);
     }
-}
 
+}

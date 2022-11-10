@@ -1,46 +1,43 @@
-package server.differentServerSolution;
+package server;
 
-import org.json.JSONObject;
-import server.Request;
-import server.ResponseHandler;
+
+import client.Request;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-class Session implements Runnable {
+public class Session implements Runnable {
+    private final ResponseHandler responseHandler;
     private final ServerSocket server;
     private final Socket socket;
-    private final ResponseHandler responseHandler;
 
-    public Session(ServerSocket server, Socket socketForClient, ResponseHandler responseHandler) {
-        this.server = server;
-        this.socket = socketForClient;
+    public Session(ResponseHandler responseHandler, ServerSocket server, Socket socket) {
         this.responseHandler = responseHandler;
+        this.server = server;
+        this.socket = socket;
     }
 
+    @Override
     public void run() {
         try (
+                socket;
                 DataInputStream input = new DataInputStream(socket.getInputStream());
                 DataOutputStream output = new DataOutputStream(socket.getOutputStream())
         ) {
             String command = input.readUTF(); // reading a message
             System.out.println("Received: " + command);
 
-            JSONObject request = new JSONObject(command);
+            Request request = responseHandler.getRequest(command);
             String jsonResponse = responseHandler.getJsonResponse(request);
-
             output.writeUTF(jsonResponse); // resend it to the client
             System.out.println("Sent: " + jsonResponse);
 
-            if (request.getString("type").equals("exit")) {
-                //server.close();
-                //System.exit(0);
+            if ("exit".equals(request.getType())) {
+                server.close();
             }
-
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
