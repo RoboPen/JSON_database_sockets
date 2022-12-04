@@ -1,55 +1,47 @@
 package client;
 
 import com.google.gson.Gson;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class RequestHandler {
-    //    private static final String INPUT_FILE_DIR = System.getProperty("user.dir") + "/JSON Database/task/src/client/data/";
     private static final String INPUT_FILE_DIR = "src/main/java/client/data/";
 
-    private final Gson gson;
-
-    public RequestHandler(Gson gson) {
-        this.gson = gson;
-    }
+    private final Gson gson = new Gson();
 
     public String createRequest(Arguments arguments) throws IOException {
         String inputFile = arguments.getInputFile();
 
-        JSONObject request;
+        Request request;
         if (inputFile == null) {
             request = createRequestFromArgs(arguments);
         } else {
             request = createRequestFromFile(inputFile);
         }
 
-        return request.toString();
+        return gson.toJson(request);
     }
 
-    private JSONObject createRequestFromArgs(Arguments arguments) {
-        String type = arguments.getType();
+    private Request createRequestFromArgs(Arguments arguments) {
+        String requestType = arguments.getType();
         String key = arguments.getKey();
         String value = arguments.getValue();
 
-        JSONObject request = new JSONObject();
-        request.put("type", type);
+        Request request = new Request();
+        request.setType(requestType);
         if (key != null) {
-            request.put("key", key);
+            request.setKey(key);
         }
         if (value != null) {
-            request.put("value", value);
+            request.setValue(value);
         }
         return request;
     }
 
-    private JSONObject createRequestFromFile(String inputFile) throws IOException {
+    private Request createRequestFromFile(String inputFile) throws IOException {
         String fileContent = new String(Files.readAllBytes(Path.of(INPUT_FILE_DIR + inputFile)));
-
-        return new JSONObject(fileContent);
+        return gson.fromJson(fileContent, Request.class);
     }
 }

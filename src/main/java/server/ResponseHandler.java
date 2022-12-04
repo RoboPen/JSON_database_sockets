@@ -1,24 +1,23 @@
 package server;
 
-import com.google.gson.Gson;
-import org.json.JSONObject;
-
-import java.io.IOException;
+import client.Request;
+import com.google.gson.*;
 
 public class ResponseHandler {
     private static final String OK = "OK";
     private static final String ERROR = "ERROR";
+    private final Gson gson = new Gson();
 
     private final JsonDatabase jsonDatabase;
-    private final Gson gson = new Gson();
+
 
     public ResponseHandler(JsonDatabase jsonDatabase) {
         this.jsonDatabase = jsonDatabase;
     }
 
-    public String getJsonResponse(JSONObject request) throws IOException {
+    public String getJsonResponse(Request request)  {
         Response response = new Response();
-        switch (request.getString("type")) {
+        switch (request.getType()) {
             case "exit":
                 response.setResponse(OK);
                 break;
@@ -33,20 +32,25 @@ public class ResponseHandler {
                 break;
             default:
                 throw new IllegalArgumentException(
-                        String.format("Command %s is not supported", request.getString("type"))
+                        String.format("Command %s is not supported", request.getType())
                 );
 
         }
         return gson.toJson(response);
     }
 
-    private void executeSetCommand(JSONObject request, Response response) throws IOException {
-        jsonDatabase.set(request);
+    public Request getRequest(String command) {
+        return gson.fromJson(command, Request.class);
+    }
+
+    private void executeSetCommand(Request request, Response response)  {
+        JsonElement value = gson.toJsonTree(request.getValue());
+        jsonDatabase.set(request.getKey(), value);
         response.setResponse(OK);
     }
 
-    private void executeGetCommand(JSONObject request, Response response) throws IOException {
-        String value = jsonDatabase.get(request);
+    private void executeGetCommand(Request request, Response response)  {
+        Object value = jsonDatabase.get(request.getKey());
         if (value != null) {
             response.setResponse(OK);
             response.setValue(value);
@@ -56,8 +60,8 @@ public class ResponseHandler {
         }
     }
 
-    private void executeDeleteCommand(JSONObject request, Response response) throws IOException {
-        if (jsonDatabase.delete(request)) {
+    private void executeDeleteCommand(Request request, Response response) {
+        if (jsonDatabase.delete(request.getKey())) {
             response.setResponse(OK);
         } else {
             response.setResponse(ERROR);
