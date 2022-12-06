@@ -1,7 +1,8 @@
 package server;
 
 import client.Request;
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 
 public class ResponseHandler {
     private static final String OK = "OK";

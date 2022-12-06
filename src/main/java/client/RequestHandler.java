@@ -8,7 +8,6 @@ import java.nio.file.Path;
 
 public class RequestHandler {
     private static final String INPUT_FILE_DIR = "src/main/java/client/data/";
-
     private final Gson gson = new Gson();
 
     public String createRequest(Arguments arguments) throws IOException {

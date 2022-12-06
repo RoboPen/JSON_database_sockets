@@ -3,7 +3,6 @@ package server;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,7 +13,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class JsonDatabase {
-    private static final String DB_PATH = "src/main/java/server/data/db.json";
+    private static final String DB_PATH = "./src/main/java/server/data/db.json";
     private static final Path PATH = Path.of(DB_PATH);
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
@@ -85,8 +84,10 @@ public class JsonDatabase {
 
         if (key instanceof String) {
             keys = new String[]{key.toString()};
+            System.out.println("string");
         } else {
             keys = new Gson().fromJson(key.toString(), String[].class);
+            System.out.println("array");
         }
 
         return keys;
@@ -99,7 +100,12 @@ public class JsonDatabase {
             jsonObject.add(currentKey, value);
             return;
         } else if (!jsonObject.has(currentKey)) {
-            jsonObject.add(currentKey, new JsonObject());
+            if (keys.length == 1) {
+                jsonObject.add(currentKey, value);
+                return;
+            } else {
+                jsonObject.add(currentKey, new JsonObject());
+            }
         }
 
         JsonObject nestedObjectVal = jsonObject.getAsJsonObject(currentKey);
@@ -134,5 +140,4 @@ public class JsonDatabase {
         String[] remainingKeys = Arrays.copyOfRange(keys, 1, keys.length);
         return deleteValue(nestedJsonObjectVal, remainingKeys);
     }
-
 }

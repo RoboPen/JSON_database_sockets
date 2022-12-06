@@ -1,14 +1,14 @@
-## Tier 1 client-server multithreaded architecture
+## Tier 1 client-server multithreaded JSON database application
 
 Used technologies: **Java**, **JCommander**, **Gson**
 
 **Features:**
 - getting, deleting values from database JSON file
 - setting values to existing and **non-existing keys!**
-- modifying database by CLI with usage of parameters or JSON file
+- modifying database by with usage of parameters or JSON file
 
 **Request format**  
-Examples of parameters requests:
+Examples of request parameters (only not nested objects):
    ```
  -t get -k key
  -t set -k key -v value 
@@ -19,9 +19,9 @@ _Exit command is required to shut down the server_
 
 Example of request with usage of JSON file:
 ```
--in name.json
+-in fileName.json
 ```
-Structure of JSON file has to have following keys:
+Structure of JSON request file has to have following format:
 ```
 {
   "type": "set",
@@ -29,7 +29,7 @@ Structure of JSON file has to have following keys:
   "value": "90"
 }
 ```  
-When reaching not-nested key, this form is also acceptable:
+When reaching not-nested objects, this form is also acceptable:
 ``` 
 {
   "type": "set",
@@ -37,7 +37,7 @@ When reaching not-nested key, this form is also acceptable:
   "value": "90"
 }
 ``` 
-For modification of nested keys, including those not existing keys, only array of keys is accepted:
+For modification of nested objects, including those not existing objects, only array of keys is accepted:
 ``` 
 {
   "type": "set",
